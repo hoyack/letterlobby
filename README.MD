@@ -1,3 +1,15 @@
+# Prelude
+The other day a politician sponsored a bill I didn't like and I wanted to write them a letter in protest. I decided to build this project to help people write politicians more letters. The power of a letter being mailed to a politician has always been stated to be one of the highest impact activities that a citizen can do to express their opinion, yet so few people have the nessarry tools on hand today to do so.
+
+# Introduction
+This project's motivation is to provide a framework for mailing letters to politicians.
+It incorporates the concept of a "Bill" which can be created and "Politicians" which can be stored.
+A user may call for a "letter" related to the "Bill" and have it sent to the "Politician"
+The letter is written by AI, on behalf of the user.
+It incoprorates the user's feedback and sentiment.
+Payment is collected from the user to cover the costs of mailing the letter.
+The letter is mailed using a 3rd party Direct-Mail API service.
+
 # Prerequisites
 You must be running OLLAMA locally and have a model loaded:
 https://github.com/ollama/ollama
@@ -58,7 +70,7 @@ LOB_API_KEY=live_XXXXXXXXXXXXXXXXXXXXXXX
 ```
 # Local Setup
 
-RUN `https://github.com/hoyack/letterlobby.git`
+RUN `git clone https://github.com/hoyack/letterlobby.git`
 ```
 cd letterlobby
 ```
