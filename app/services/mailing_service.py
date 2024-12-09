@@ -1,5 +1,6 @@
 # app/services/mailing_service.py
 
+import json
 import requests
 from app.core.config import settings
 
@@ -24,8 +25,6 @@ def format_letter_text(
     paragraph_html = "\n".join(f"<p>{p}</p>" for p in paragraphs)
 
     # Construct the full HTML
-    # Insert addresses and names into the template
-    # You can customize the style as you wish
     html = f"""
 <html>
   <head>
@@ -104,19 +103,26 @@ def send_letter(formatted_html: str, recipient_name: str, recipient_address: dic
 
 def mail_letter(letter_req, db):
     """
-    Example of how you'd integrate the formatting and sending steps inside your mail endpoint logic.
-    Assumes letter_req is a UserLetterRequest object.
+    Example integration logic for mailing a letter.
+    Assumes letter_req is a UserLetterRequest object with a final_letter_text field
+    containing a JSON string like:
+    {
+      "letter": "Dear Senator Doe,\n\nI am writing to..."
+    }
+
+    The letter_req.status should be 'paid' before mailing.
     """
     if letter_req.status != "paid":
         raise ValueError("Letter not paid for mailing.")
 
     # Parse final_letter_text (JSON) to get the raw draft
-    import json
     letter_data = json.loads(letter_req.final_letter_text)
-    raw_letter_text = letter_data.get("letter", "")
+    letter_text = letter_data.get("letter", "")
+
+    if not letter_text or not isinstance(letter_text, str):
+        raise ValueError("No valid 'letter' field found in final_letter_text.")
 
     # Format the letter with variables
-    # Assume we have recipient_name, recipient_address from politician
     politician = letter_req.politician
     recipient_name = politician.name
     recipient_address = {
@@ -135,7 +141,13 @@ def mail_letter(letter_req, db):
         "zip": "78702"
     }
 
-    formatted_html = format_letter_text(raw_letter_text, recipient_name, recipient_address, sender_name, sender_address)
+    formatted_html = format_letter_text(
+        letter_text,
+        recipient_name,
+        recipient_address,
+        sender_name,
+        sender_address
+    )
 
     try:
         mail_response = send_letter(formatted_html, recipient_name, recipient_address)
@@ -143,6 +155,5 @@ def mail_letter(letter_req, db):
         # Handle failure, create MailingTransaction with failed status, etc.
         raise
 
-    # On success, update mailing transaction and letter request status
-    # ...
+    # On success, you'd update mailing transaction and letter request status here if needed.
     return mail_response
