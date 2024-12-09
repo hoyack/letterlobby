@@ -3,9 +3,10 @@
 import json
 from bs4 import BeautifulSoup
 from langchain_ollama import OllamaLLM
+from app.core.config import settings  # Import settings to access OLLAMA_BASE_URL
 
 llm = OllamaLLM(
-    base_url="http://localhost:11434",
+    base_url=settings.OLLAMA_BASE_URL,  # Use OLLAMA_BASE_URL from .env
     model="llama3.2",
     format="json"  # Tells OllamaLLM to interpret response as JSON if possible
 )
@@ -42,7 +43,6 @@ def draft_letter(user_comments: str) -> str:
         data = json.loads(cleaned_response)
     except json.JSONDecodeError:
         # If parsing fails, the model may not have followed instructions.
-        # You could retry or raise an error here.
         raise ValueError("The LLM did not return valid JSON.")
 
     # Verify that "letter" is present and is a string
@@ -50,6 +50,5 @@ def draft_letter(user_comments: str) -> str:
     if not letter_text or not isinstance(letter_text, str):
         raise ValueError("No valid 'letter' field found in the LLM response.")
 
-    # Return the cleaned JSON as a string, or just return the letter_text
-    # Since final_letter_text stored in DB expects a JSON string, we can store `data` as json string
+    # Return the cleaned JSON as a string, which can be stored in final_letter_text
     return json.dumps(data)

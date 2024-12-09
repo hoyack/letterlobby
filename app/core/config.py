@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str
     STRIPE_ENDPOINT_SECRET: str
     LOB_API_KEY: str
+    OLLAMA_BASE_URL: str
 
     model_config = SettingsConfigDict(env_file=str(ENV_FILE))
 
