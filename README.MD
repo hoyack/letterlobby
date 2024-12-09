@@ -1,4 +1,111 @@
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Prerequisites
+You must be running OLLAMA locally and have a model loaded:
+https://github.com/ollama/ollama
+```
+curl -fsSL https://ollama.com/install.sh | sh
+ollama serve
+ollama run llama3.2
+```
+Confirm API works:
+```
+curl http://localhost:11434/api/generate -d '{
+  "model": "llama3.2",
+  "prompt":"Why is the sky blue?"
+}'
+```
+
+The project relies on an accessable Postgres server.
+```
+docker run --name letterlobby-postgres \
+    -e POSTGRES_USER=letterlobby_user \
+    -e POSTGRES_PASSWORD=letterlobby_password \
+    -e POSTGRES_DB=letterlobby_db \
+    -p 5432:5432 \
+    -d postgres:14
+```
+
+Test with PG Admin. Once you can connect to your PG server you can continue.
+
+You will need to use the connection string for Postgres in the `.env` later:
+```
+DATABASE_URL=postgresql+psycopg2://letterlobby_user:letterlobby_password@localhost:5432/letterlobby_db
+```
+
+Install Anaconda (optional / recommended if not using Docker)
+https://docs.anaconda.com/distro-or-miniconda/
+
+Obtain STRIPE dev API key:
+https://support.stripe.com/questions/what-are-stripe-api-keys-and-how-to-find-them
+
+Obtain the Stripe API Key (Test Mode) for use in the `.env`
+```
+STRIPE_SECRET_KEY=sk_test_xxxxxx
+```
+Set up Stripe Webhook:
+https://docs.stripe.com/development/dashboard/webhooks
+
+Configure Stripe to Listen for Event Type `checkout.session.completed`
+Obtain the Stripe Webhook "Signing Secret" for use in the `.env`
+```
+STRIPE_ENDPOINT_SECRET=whsec_xxxxx
+```
+Set up LOB:
+https://docs.lob.com/#tag/Getting-Started`
+
+Obtain the LOB API Key (test) for use in the `.env`
+```
+LOB_API_KEY=live_XXXXXXXXXXXXXXXXXXXXXXX
+```
+# Local Setup
+
+RUN `https://github.com/hoyack/letterlobby.git`
+```
+cd letterlobby
+```
+If you want to use Anaconda or Miniconda (otherwise venv is recommend):
+```
+conda create -n letterlobby python=3.10
+conda activate letterlobby
+```
+Continue with installation once your environment has Python running.
+```
+pip install -r requirements.txt
+cp .env-sample .env
+```
+Edit the `.env` file to include the nessarry variables:
+`nano .env` or use `code .` to start VS Code in the working directory.
+```
+DATABASE_URL=postgresql+psycopg2://letterlobby_user:letterlobby_password@localhost:5432/letterlobby_db
+STRIPE_SECRET_KEY=sk_test_xxxxxx
+STRIPE_ENDPOINT_SECRET=whsec_xxxxx
+LOB_API_KEY=live_XXXXXXXXXXXXXXXXXXXXXXX
+```
+# Start Server
+
+```
+RUN `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+```
+
+## Expose the project to recieve webhook callbacks
+If running locally, for dev/testing you can use NGROK to get Stripe webhook callbacks.
+Install NGROK:
+```
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+	| sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+	&& echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+	| sudo tee /etc/apt/sources.list.d/ngrok.list \
+	&& sudo apt update \
+	&& sudo apt install ngrok
+```
+
+Set up NGROK
+```
+ngrok config add-authtoken <your-secret-token>
+```
+Start the NGROK server on the port you host this project:
+`ngrok http http://localhost:8000`
+
+# Using The Project
 
 `curl http://localhost:8000/bills`
 
