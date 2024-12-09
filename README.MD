@@ -25,6 +25,10 @@ curl http://localhost:11434/api/generate -d '{
   "prompt":"Why is the sky blue?"
 }'
 ```
+The ollama server will be needed to be set in the .`env`
+```
+OLLAMA_BASE_URL=http://<your-ollama-server-hostname>:11434
+```
 
 The project relies on an accessable Postgres server.
 ```
@@ -91,6 +95,7 @@ DATABASE_URL=postgresql+psycopg2://letterlobby_user:letterlobby_password@localho
 STRIPE_SECRET_KEY=sk_test_xxxxxx
 STRIPE_ENDPOINT_SECRET=whsec_xxxxx
 LOB_API_KEY=live_XXXXXXXXXXXXXXXXXXXXXXX
+OLLAMA_BASE_URL=http://localhost:11434
 ```
 # Start Server
 
@@ -125,11 +130,15 @@ git clone https://github.com/hoyack/letterlobby.git`
 cd letterlobby
 cp .env-sample .env
 ```
-Edit the `.env` and if using a local Docker Postgres container your postgres connection string might look like this:
+Edit the `.env`
 ```
 DATABASE_URL=postgresql+psycopg2://letterlobby_user:letterlobby_password@host.docker.internal:5432/letterlobby_db
+STRIPE_SECRET_KEY=sk_test_xxxxxx
+STRIPE_ENDPOINT_SECRET=whsec_xxxxx
+LOB_API_KEY=live_XXXXXXXXXXXXXXXXXXXXXXX
+OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
-note the host is `host.docker.internal:5432` because the Fast API has to connect to Postgres at a host that it can communicate with and if you use something like `localhost` then the container will try to communicate with itself at `localhost` instead of the `localhost` on your bare metal so by using this `host.docker.internal` hostname, our postgres connection string should be able to connect to the database.
+Next build and start the container:
 ```
 docker compose build
 docker compose up
