@@ -117,6 +117,40 @@ ngrok config add-authtoken <your-secret-token>
 Start the NGROK server on the port you host this project:
 `ngrok http http://localhost:8000`
 
+# Building with Docker
+You must be running Postgres and it must be started. (See # Prerequisites).
+Run the following commands (tested on Ubuntu)
+```
+git clone https://github.com/hoyack/letterlobby.git`
+cd letterlobby
+cp .env-sample .env
+```
+Edit the `.env` and if using a local Docker Postgres container your postgres connection string might look like this:
+```
+DATABASE_URL=postgresql+psycopg2://letterlobby_user:letterlobby_password@host.docker.internal:5432/letterlobby_db
+```
+note the host is `host.docker.internal:5432` because the Fast API has to connect to Postgres at a host that it can communicate with and if you use something like `localhost` then the container will try to communicate with itself at `localhost` instead of the `localhost` on your bare metal so by using this `host.docker.internal` hostname, our postgres connection string should be able to connect to the database.
+```
+docker compose build
+docker compose up
+```
+Now you should see something like:
+```
+~/letterlobby$ docker compose up
+WARN[0000] /home/hoyack/letterlobby/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Running 1/1
+ ✔ Container letterlobby-app-1  Recreated                                                            0.1s 
+Attaching to app-1
+app-1  | INFO:     Started server process [1]
+app-1  | INFO:     Waiting for application startup.
+app-1  | INFO:     Application startup complete.
+app-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+app-1  | INFO:     172.18.0.1:57980 - "GET / HTTP/1.1" 200 OK
+
+```
+and then you should be able to access your project at `http://localhost:8000`
+At this point you can also follow the previous instructions to expose the project by `NGROK` if you want and configure the stripe webhook accordingly. 
+
 # Using The Project
 
 `curl http://localhost:8000/bills`
