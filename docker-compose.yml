@@ -1,0 +1,37 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=letterlobby_user
+      - POSTGRES_PASSWORD=letterlobby_password
+      - POSTGRES_DB=letterlobby_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U letterlobby_user -d letterlobby_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://letterlobby_user:letterlobby_password@db:5432/letterlobby_db
+      STRIPE_SECRET_KEY: sk_test_xxxxxx
+      STRIPE_ENDPOINT_SECRET: whsec_xxxxx
+      LOB_API_KEY: live_XXXXXXXXXXXXXXXXXXXXXXX
+    ports:
+      - "8000:8000"
+    # If you have a .env, you could also specify env_file: 
+    # env_file: .env
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+volumes:
+  db_data:
