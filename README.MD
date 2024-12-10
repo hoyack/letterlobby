@@ -25,9 +25,10 @@ curl http://localhost:11434/api/generate -d '{
   "prompt":"Why is the sky blue?"
 }'
 ```
-The ollama server will be needed to be set in the .`env`
+The ollama server and model will be needed to be set in the .`env`
 ```
 OLLAMA_BASE_URL=http://<your-ollama-server-hostname>:11434
+OLLAMA_MODEL=llama3.2
 ```
 
 The project relies on an accessable Postgres server.
@@ -96,6 +97,7 @@ STRIPE_SECRET_KEY=sk_test_xxxxxx
 STRIPE_ENDPOINT_SECRET=whsec_xxxxx
 LOB_API_KEY=live_XXXXXXXXXXXXXXXXXXXXXXX
 OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
 ```
 # Start Server
 
@@ -137,6 +139,7 @@ STRIPE_SECRET_KEY=sk_test_xxxxxx
 STRIPE_ENDPOINT_SECRET=whsec_xxxxx
 LOB_API_KEY=live_XXXXXXXXXXXXXXXXXXXXXXX
 OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=llama3.2
 ```
 Next build and start the container:
 ```
@@ -161,7 +164,10 @@ and then you should be able to access your project at `http://localhost:8000`
 At this point you can also follow the previous instructions to expose the project by `NGROK` if you want and configure the stripe webhook accordingly. 
 
 # Using The Project
+Access the Swagger:
+`http://localhost:8000/docs`
 
+API's:
 `curl http://localhost:8000/bills`
 
 This should return a list of bills with their id. For example:
