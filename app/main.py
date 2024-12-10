@@ -7,7 +7,10 @@ from app.models.bill import Bill
 from app.models.politician import Politician
 from app.models.user_letter_request import UserLetterRequest
 from app.models.mailing_transaction import MailingTransaction
+from app.models.queued_letter import QueuedLetter  # new model import
+from app.routers import bills, politicians, user_letter_requests, webhooks, queued_letters
 from uuid import UUID
+
 
 # Import the bills router
 from app.routers import bills, politicians, user_letter_requests, webhooks
@@ -21,6 +24,7 @@ app.include_router(bills.router)
 app.include_router(politicians.router)
 app.include_router(user_letter_requests.router)
 app.include_router(webhooks.router)
+app.include_router(queued_letters.router)
 
 @app.get("/")
 def read_root():
