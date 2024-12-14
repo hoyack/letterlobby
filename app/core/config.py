@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     LOB_API_KEY: str
     OLLAMA_BASE_URL: str
     OLLAMA_MODEL: str
+    CUPS_SERVER_HOST: str
+    CUPS_SERVER_PORT: int
 
     model_config = SettingsConfigDict(env_file=str(ENV_FILE))
 

@@ -277,3 +277,23 @@ Expect a response such as
 ```
     "message": "Letter mailed successfully"
 ```
+
+Instead of mailing the letter via the letter mailing service, the draft can also be queued.
+```
+curl -X POST http://localhost:8000/queued-letters/ \
+  -H "Content-Type: application/json" \
+  -d '{
+        "user_letter_request_id": "NEW-LETTER-ID-HERE",
+        "final_letter_text": "Optional new draft text if you want to override the original"
+      }'
+```
+The queue just stores the letter in a different state that drafted.
+`curl http://localhost:8000/queued-letters/`
+`curl http://localhost:8000/queued-letters/QUEUED-LETTER-ID-HERE`
+```
+curl -X PATCH http://localhost:8000/queued-letters/QUEUED-LETTER-ID-HERE \
+  -H "Content-Type: application/json" \
+  -d '{"final_letter_text": "Updated letter draft", "status": "processed"}'
+```
+`curl -X DELETE http://localhost:8000/queued-letters/QUEUED-LETTER-ID-HERE`
+`curl -X DELETE http://localhost:8000/queued-letters/`

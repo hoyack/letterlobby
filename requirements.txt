@@ -8,3 +8,5 @@ SQLAlchemy==2.0.36
 stripe==11.3.0
 uvicorn[standard]
 psycopg2==2.9.7
+pdfkit==1.0.0
+pycups==2.0.1
