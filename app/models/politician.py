@@ -4,6 +4,7 @@ import uuid
 from sqlalchemy import Column, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class Politician(Base):
@@ -18,5 +19,9 @@ class Politician(Base):
     office_state = Column(String, nullable=False)
     office_zip = Column(String, nullable=False)
     legislative_body = Column(String, nullable=False)
+    email = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationship to BillPolitician
+    bill_politicians_assocs = relationship("BillPolitician", back_populates="politician")

@@ -22,6 +22,8 @@ from app.models.user_letter_request import UserLetterRequest
 from app.models.otp_code import OTPCode
 from app.models.mailing_transaction import MailingTransaction
 from app.models.queued_letter import QueuedLetter
+from app.models.bill_politician import BillPolitician
+
 
 config = context.config
 

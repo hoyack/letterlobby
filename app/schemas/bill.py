@@ -1,9 +1,13 @@
 # app/schemas/bill.py
 
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
+
+class BillPoliticianAssociationOut(BaseModel):
+    politician_id: UUID
+    does_support: Optional[bool]
 
 class BillBase(BaseModel):
     title: str
@@ -13,7 +17,8 @@ class BillBase(BaseModel):
     status: Optional[str] = None
 
 class BillCreate(BillBase):
-    pass  # same fields as BillBase for creation
+    # On creation, allow specifying politicians and does_support
+    politicians: Optional[List[BillPoliticianAssociationOut]] = []
 
 class BillUpdate(BaseModel):
     title: Optional[str] = None
@@ -21,11 +26,13 @@ class BillUpdate(BaseModel):
     bill_number: Optional[str] = None
     legislative_body: Optional[str] = None
     status: Optional[str] = None
+    politicians: Optional[List[BillPoliticianAssociationOut]] = None
 
 class BillOut(BillBase):
     id: UUID
     created_at: datetime
     updated_at: Optional[datetime]
+    politicians: List[BillPoliticianAssociationOut]
 
     class Config:
         from_attributes = True
