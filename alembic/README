@@ -1,0 +1,18 @@
+Generic single-database configuration.
+
+# Running Migrations
+Access the App container shell and run migrations inside it
+```
+docker compose exec app sh
+alembic -c alembic/alembic.ini revision -m "Add is_verified to users"
+alembic -c alembic/alembic.ini upgrade head
+```
+
+# Known Issue
+Due to the .env calling `host.docker.internal` the alembic commands error while running locally.
+Solving this requires running the commands inside the container
+You must save the version file that is created in the container `alembic/versions` subfolder
+This must be saved to the repo to maintain proper migration chains.
+
+# Bug Fix Recommendation
+Running migrations from a local environment and committing the changes would be a better approach

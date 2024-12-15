@@ -15,8 +15,12 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str
     CUPS_SERVER_HOST: str
     CUPS_SERVER_PORT: int
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    MAILGUN_API_KEY: str
+    MAILGUN_DOMAIN: str
 
     model_config = SettingsConfigDict(env_file=str(ENV_FILE))
 
 settings = Settings()
-

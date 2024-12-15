@@ -10,3 +10,8 @@ uvicorn[standard]
 psycopg2==2.9.7
 pdfkit==1.0.0
 pycups==2.0.1
+python-jose[cryptography]
+passlib==1.7.4
+bcrypt==4.0.1
+email-validator
+alembic

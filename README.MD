@@ -297,3 +297,7 @@ curl -X PATCH http://localhost:8000/queued-letters/QUEUED-LETTER-ID-HERE \
 ```
 `curl -X DELETE http://localhost:8000/queued-letters/QUEUED-LETTER-ID-HERE`
 `curl -X DELETE http://localhost:8000/queued-letters/`
+
+# Setting Administrator users
+
+`UPDATE users SET role='administrator' WHERE email='administrator@example-domain.com';`
