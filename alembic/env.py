@@ -7,24 +7,27 @@ sys.path.append(str(BASE_DIR))
 
 import os
 from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# Now we can safely import from app since we've adjusted sys.path
 from app.core.config import settings
 from app.core.database import Base
 
-# this is the Alembic Config object, which provides
-# access to values within the alembic.ini file.
+# Import all model modules here
+# Ensure these imports correspond to your actual model files
+from app.models.user import User
+from app.models.bill import Bill
+from app.models.politician import Politician
+from app.models.user_letter_request import UserLetterRequest
+from app.models.otp_code import OTPCode
+from app.models.mailing_transaction import MailingTransaction
+from app.models.queued_letter import QueuedLetter
+
 config = context.config
 
-# Interpret the config file for Python logging.
-# This sets up the loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Set target_metadata to your models' metadata object
 target_metadata = Base.metadata
 
 def run_migrations_offline():
