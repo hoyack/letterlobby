@@ -1,3 +1,5 @@
+# app/schemas/queued_letter.py
+
 from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
@@ -10,19 +12,21 @@ class QueuedLetterStatus(str, Enum):
 
 class QueuedLetterBase(BaseModel):
     user_letter_request_id: UUID
-    final_letter_text: Optional[str] = None
 
 class QueuedLetterCreate(QueuedLetterBase):
     pass
 
 class QueuedLetterUpdate(BaseModel):
-    final_letter_text: Optional[str] = None
     status: Optional[QueuedLetterStatus] = None
 
 class QueuedLetterOut(QueuedLetterBase):
     id: UUID
     status: QueuedLetterStatus
     created_at: datetime
+
+    # Include these two fields to show associated bill and politician data
+    bill_id: UUID
+    politician_id: UUID
 
     class Config:
         from_attributes = True
