@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from uuid import UUID
-import json, requests
+import json
+import requests
 
 from app.core.database import get_db
 from app.models.user_letter_request import UserLetterRequest, LetterStatus
 from app.models.bill import Bill
 from app.models.politician import Politician
-from app.schemas.letter_request import UserLetterRequestCreate, UserLetterRequestOut, UserLetterRequestUpdate, LetterDraftRequest
+from app.schemas.letter_request import UserLetterRequestCreate, UserLetterRequestOut, UserLetterRequestUpdate
+from app.schemas.letter_draft_request import LetterDraftRequest
 from app.services.letter_drafting import draft_letter
 from app.services.payment_service import create_checkout_session
 from app.models.mailing_transaction import MailingTransaction, MailingStatus
@@ -15,6 +17,7 @@ from app.services.mailing_service import format_letter_text, send_letter
 from app.dependencies import require_verified_user
 from app.models.user import User
 from app.models.global_return_address import GlobalReturnAddress
+from app.services.printing_service import html_to_pdf
 
 router = APIRouter(prefix="/letter-requests", tags=["letter_requests"])
 
@@ -47,8 +50,7 @@ def create_letter_request(
     if not politician:
         raise HTTPException(status_code=400, detail="Invalid politician_id")
 
-    # Create the request in drafting status
-    # Tie it to the current_user
+    # Create the request in drafting status tied to current_user
     letter_req = UserLetterRequest(
         bill_id=letter_data.bill_id,
         politician_id=letter_data.politician_id,
@@ -85,6 +87,18 @@ def update_letter_request(letter_id: UUID, updates: UserLetterRequestUpdate, db:
     db.refresh(letter_req)
     return letter_req
 
+@router.delete("/{letter_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_letter_request(letter_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(require_verified_user)):
+    letter_req = get_letter_request_or_404(db, letter_id, current_user)
+
+    # Allow deletion only if not mailed yet
+    if letter_req.status == LetterStatus.mailed:
+        raise HTTPException(status_code=400, detail="Cannot delete a mailed letter request.")
+
+    db.delete(letter_req)
+    db.commit()
+    return None
+
 @router.post("/{letter_id}/draft", response_model=UserLetterRequestOut)
 def generate_letter_draft(
     letter_id: UUID, 
@@ -94,20 +108,11 @@ def generate_letter_draft(
 ):
     letter_req = get_letter_request_or_404(db, letter_id, current_user)
 
-    # personal_feedback is provided directly
-    personal_feedback = draft_data.personal_feedback
+    if not draft_data.personal_feedback:
+        raise HTTPException(status_code=400, detail="personal_feedback is required to draft the letter.")
 
-    # Construct prompt using only personal_feedback since stance/support level are removed
-    prompt = f"""
-    Write a respectful, clear, and well-structured letter regarding the associated bill.
-    Consider this personal feedback from the requester:
-    {personal_feedback}
-
-    Sign off at the end.
-    Please respond with a JSON object containing a field "letter" that holds the final letter text.
-    """
-
-    drafted_text = draft_letter(prompt)
+    # Use the personal_feedback as user_comments to draft the letter
+    drafted_text = draft_letter(draft_data.personal_feedback)
     letter_req.final_letter_text = drafted_text
     letter_req.status = LetterStatus.finalized
     db.commit()
@@ -139,7 +144,6 @@ def mail_letter(letter_id: UUID, db: Session = Depends(get_db), current_user: Us
     if not letter_req.final_letter_text:
         raise HTTPException(status_code=400, detail="No final letter text available.")
 
-    # Retrieve global return address
     global_addr = db.query(GlobalReturnAddress).first()
     if not global_addr:
         raise HTTPException(status_code=500, detail="No global return address set.")
@@ -161,7 +165,6 @@ def mail_letter(letter_id: UUID, db: Session = Depends(get_db), current_user: Us
         "zip": politician.office_zip
     }
 
-    # Use global return address
     sender_name = global_addr.organization_name
     sender_address = {
         "line1": global_addr.address_line1,
@@ -203,7 +206,7 @@ def mail_letter(letter_id: UUID, db: Session = Depends(get_db), current_user: Us
         user_letter_request_id=letter_req.id,
         external_mail_service_id=mail_response.get("id"),
         status=MailingStatus.sent,
-        mail_service_response=mail_response  # Store the entire response
+        mail_service_response=mail_response
     )
     db.add(mailing_tx)
     letter_req.status = LetterStatus.mailed
@@ -212,3 +215,50 @@ def mail_letter(letter_id: UUID, db: Session = Depends(get_db), current_user: Us
 
     return {"message": "Letter mailed successfully", "mailing_transaction_id": str(mailing_tx.id), "mail_service_response": mail_response}
 
+@router.get("/{letter_id}/pdf", response_class=Response)
+def get_letter_pdf(letter_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(require_verified_user)):
+    letter_req = get_letter_request_or_404(db, letter_id, current_user)
+
+    if not letter_req.final_letter_text:
+        raise HTTPException(status_code=400, detail="No final letter text available.")
+
+    global_addr = db.query(GlobalReturnAddress).first()
+    if not global_addr:
+        raise HTTPException(status_code=500, detail="No global return address set.")
+
+    try:
+        letter_data = json.loads(letter_req.final_letter_text)
+        raw_letter_text = letter_data.get("letter")
+        if not raw_letter_text or not isinstance(raw_letter_text, str):
+            raise HTTPException(status_code=400, detail="No 'letter' field found in final_letter_text.")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in final_letter_text.")
+
+    politician = letter_req.politician
+    recipient_address = {
+        "line1": politician.office_address_line1,
+        "line2": politician.office_address_line2 or "",
+        "city": politician.office_city,
+        "state": politician.office_state,
+        "zip": politician.office_zip
+    }
+
+    sender_name = global_addr.organization_name
+    sender_address = {
+        "line1": global_addr.address_line1,
+        "line2": global_addr.address_line2 or "",
+        "city": global_addr.city,
+        "state": global_addr.state,
+        "zip": global_addr.zipcode
+    }
+
+    formatted_html = format_letter_text(
+        raw_letter_text,
+        recipient_name=politician.name,
+        recipient_address=recipient_address,
+        sender_name=sender_name,
+        sender_address=sender_address
+    )
+
+    pdf = html_to_pdf(formatted_html)
+    return Response(content=pdf, media_type="application/pdf")
