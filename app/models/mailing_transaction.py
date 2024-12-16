@@ -1,7 +1,7 @@
 # app/models/mailing_transaction.py
 
 import uuid
-from sqlalchemy import Column, ForeignKey, String, DateTime, Enum, func
+from sqlalchemy import Column, ForeignKey, String, DateTime, Enum, JSON, func
 from sqlalchemy.dialects.postgresql import UUID
 from enum import Enum as PyEnum
 from app.core.database import Base
@@ -20,6 +20,7 @@ class MailingTransaction(Base):
     external_mail_service_id = Column(String, nullable=True)
     status = Column(Enum(MailingStatus), default=MailingStatus.pending)
     error_message = Column(String, nullable=True)
+    mail_service_response = Column(JSON, nullable=True)  # Added JSON column
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

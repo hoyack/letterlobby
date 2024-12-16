@@ -7,14 +7,14 @@ from app.core.database import get_db
 from app.models.user_letter_request import UserLetterRequest, LetterStatus
 from app.models.bill import Bill
 from app.models.politician import Politician
-from app.schemas.letter_request import UserLetterRequestCreate, UserLetterRequestOut, UserLetterRequestUpdate
-from app.schemas.letter_draft_request import LetterDraftRequest
+from app.schemas.letter_request import UserLetterRequestCreate, UserLetterRequestOut, UserLetterRequestUpdate, LetterDraftRequest
 from app.services.letter_drafting import draft_letter
 from app.services.payment_service import create_checkout_session
 from app.models.mailing_transaction import MailingTransaction, MailingStatus
 from app.services.mailing_service import format_letter_text, send_letter
 from app.dependencies import require_verified_user
 from app.models.user import User
+from app.models.global_return_address import GlobalReturnAddress
 
 router = APIRouter(prefix="/letter-requests", tags=["letter_requests"])
 
@@ -33,7 +33,11 @@ def get_letter_request_or_404(db: Session, letter_id: UUID, current_user: User) 
     return letter_req
 
 @router.post("/", response_model=UserLetterRequestOut, status_code=status.HTTP_201_CREATED)
-def create_letter_request(letter_data: UserLetterRequestCreate, db: Session = Depends(get_db), current_user: User = Depends(require_verified_user)):
+def create_letter_request(
+    letter_data: UserLetterRequestCreate, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(require_verified_user)
+):
     # Validate that the Bill and Politician exist
     bill = db.query(Bill).filter(Bill.id == letter_data.bill_id).first()
     if not bill:
@@ -46,7 +50,9 @@ def create_letter_request(letter_data: UserLetterRequestCreate, db: Session = De
     # Create the request in drafting status
     # Tie it to the current_user
     letter_req = UserLetterRequest(
-        **letter_data.dict(),
+        bill_id=letter_data.bill_id,
+        politician_id=letter_data.politician_id,
+        use_profile_return_address=letter_data.use_profile_return_address,
         user_id=current_user.id,
         status=LetterStatus.drafting
     )
@@ -80,26 +86,24 @@ def update_letter_request(letter_id: UUID, updates: UserLetterRequestUpdate, db:
     return letter_req
 
 @router.post("/{letter_id}/draft", response_model=UserLetterRequestOut)
-def generate_letter_draft(letter_id: UUID, draft_data: LetterDraftRequest, db: Session = Depends(get_db), current_user: User = Depends(require_verified_user)):
+def generate_letter_draft(
+    letter_id: UUID, 
+    draft_data: LetterDraftRequest, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(require_verified_user)
+):
     letter_req = get_letter_request_or_404(db, letter_id, current_user)
 
-    if not letter_req.user_comments:
-        raise HTTPException(status_code=400, detail="No user_comments provided for drafting.")
+    # personal_feedback is provided directly
+    personal_feedback = draft_data.personal_feedback
 
+    # Construct prompt using only personal_feedback since stance/support level are removed
     prompt = f"""
-    Write a respectful and clear letter to {draft_data.lawmaker_name} regarding the bill "{draft_data.bill_name}".
-    The writer's stance towards this bill is: {draft_data.stance}. 
-    On a scale from 1 to 10, their support level is: {draft_data.support_level}.
+    Write a respectful, clear, and well-structured letter regarding the associated bill.
+    Consider this personal feedback from the requester:
+    {personal_feedback}
 
-    Background comments from the requester:
-    {letter_req.user_comments}
-    """
-
-    if draft_data.personal_feedback:
-        prompt += f"\nAdditional personal feedback from the requester:\n{draft_data.personal_feedback}\n"
-
-    prompt += """
-    The letter should be concise, persuasive, and well-structured. Sign off at the end.
+    Sign off at the end.
     Please respond with a JSON object containing a field "letter" that holds the final letter text.
     """
 
@@ -135,6 +139,11 @@ def mail_letter(letter_id: UUID, db: Session = Depends(get_db), current_user: Us
     if not letter_req.final_letter_text:
         raise HTTPException(status_code=400, detail="No final letter text available.")
 
+    # Retrieve global return address
+    global_addr = db.query(GlobalReturnAddress).first()
+    if not global_addr:
+        raise HTTPException(status_code=500, detail="No global return address set.")
+
     try:
         letter_data = json.loads(letter_req.final_letter_text)
         raw_letter_text = letter_data.get("letter")
@@ -152,26 +161,39 @@ def mail_letter(letter_id: UUID, db: Session = Depends(get_db), current_user: Us
         "zip": politician.office_zip
     }
 
+    # Use global return address
+    sender_name = global_addr.organization_name
+    sender_address = {
+        "line1": global_addr.address_line1,
+        "line2": global_addr.address_line2 or "",
+        "city": global_addr.city,
+        "state": global_addr.state,
+        "zip": global_addr.zipcode
+    }
+
     formatted_html = format_letter_text(
         raw_letter_text,
         recipient_name=politician.name,
         recipient_address=recipient_address,
-        sender_name="Your Organization",
-        sender_address={"line1": "500 Example St", "city": "YourCity", "state": "TX", "zip": "78702"}
+        sender_name=sender_name,
+        sender_address=sender_address
     )
 
     try:
         mail_response = send_letter(
             formatted_html=formatted_html,
             recipient_name=politician.name,
-            recipient_address=recipient_address
+            recipient_address=recipient_address,
+            sender_name=sender_name,
+            sender_address=sender_address
         )
     except requests.HTTPError as e:
         mailing_tx = MailingTransaction(
             user_letter_request_id=letter_req.id,
             external_mail_service_id=None,
             status=MailingStatus.failed,
-            error_message=str(e)
+            error_message=str(e),
+            mail_service_response=None
         )
         db.add(mailing_tx)
         db.commit()
@@ -180,7 +202,8 @@ def mail_letter(letter_id: UUID, db: Session = Depends(get_db), current_user: Us
     mailing_tx = MailingTransaction(
         user_letter_request_id=letter_req.id,
         external_mail_service_id=mail_response.get("id"),
-        status=MailingStatus.sent
+        status=MailingStatus.sent,
+        mail_service_response=mail_response  # Store the entire response
     )
     db.add(mailing_tx)
     letter_req.status = LetterStatus.mailed
@@ -188,3 +211,4 @@ def mail_letter(letter_id: UUID, db: Session = Depends(get_db), current_user: Us
     db.refresh(letter_req)
 
     return {"message": "Letter mailed successfully", "mailing_transaction_id": str(mailing_tx.id), "mail_service_response": mail_response}
+

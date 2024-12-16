@@ -12,26 +12,21 @@ class LetterStatus(str, Enum):
     paid = "paid"
     mailed = "mailed"
 
-class UserLetterRequestBase(BaseModel):
+class UserLetterRequestCreate(BaseModel):
     bill_id: UUID
     politician_id: UUID
-    user_provided_name: Optional[str] = None
-    user_provided_address_line1: Optional[str] = None
-    user_provided_address_line2: Optional[str] = None
-    user_provided_city: Optional[str] = None
-    user_provided_state: Optional[str] = None
-    user_provided_zip: Optional[str] = None
-    user_comments: Optional[str] = None
-
-class UserLetterRequestCreate(UserLetterRequestBase):
-    pass
+    # By default, let's assume the user wants to use their profile return address
+    use_profile_return_address: bool = True
 
 class UserLetterRequestUpdate(BaseModel):
     final_letter_text: Optional[str] = None
     status: Optional[LetterStatus] = None
     stripe_charge_id: Optional[str] = None
+    use_profile_return_address: Optional[bool] = None
 
-class UserLetterRequestOut(UserLetterRequestBase):
+class UserLetterRequestOut(BaseModel):
+    bill_id: UUID
+    politician_id: UUID
     id: UUID
     final_letter_text: Optional[str]
     status: LetterStatus
@@ -39,6 +34,10 @@ class UserLetterRequestOut(UserLetterRequestBase):
     paid_at: Optional[datetime]
     created_at: datetime
     updated_at: Optional[datetime]
+    use_profile_return_address: bool
 
     class Config:
         from_attributes = True
+
+class LetterDraftRequest(BaseModel):
+    personal_feedback: str

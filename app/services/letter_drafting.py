@@ -3,16 +3,16 @@
 import json
 from bs4 import BeautifulSoup
 from langchain_ollama import OllamaLLM
-from app.core.config import settings  # Import settings to access OLLAMA_BASE_URL and OLLAMA_MODEL
+from app.core.config import settings
 
 llm = OllamaLLM(
-    base_url=settings.OLLAMA_BASE_URL,  # Use OLLAMA_BASE_URL from .env
-    model=settings.OLLAMA_MODEL,        # Use OLLAMA_MODEL from .env
+    base_url=settings.OLLAMA_BASE_URL,
+    model=settings.OLLAMA_MODEL,
     format="json"  # Tells OllamaLLM to interpret response as JSON if possible
 )
 
 def draft_letter(user_comments: str) -> str:
-    # Refine the prompt for stricter instructions
+    # Revised prompt: no stance/support-level references.
     prompt = f"""
     You are to respond ONLY with a well-formed JSON object that includes a single field "letter".
     "letter" should be a string containing the full text of the letter. 
@@ -26,7 +26,7 @@ def draft_letter(user_comments: str) -> str:
 
     Example of the desired format:
     {{
-      "letter": "Dear Senator Doe,\\n\\nI am writing to express my support...\\n\\nSincerely,\\n[Your Name]"
+      "letter": "Dear Senator Doe,\\n\\nI am writing to express my...\\n\\nSincerely,\\n[Your Name]"
     }}
 
     Respond with only a JSON object, nothing else.
